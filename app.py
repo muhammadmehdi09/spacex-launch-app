@@ -99,22 +99,27 @@ else:
 orbit = st.selectbox("Orbit:", sorted(df[orbit_column].dropna().unique()) if orbit_column else [])
 weather = st.selectbox("Weather:", sorted(df[weather_column].dropna().unique()) if weather_column else [])
 
+# Separate target variable before encoding
+y = df[class_column]
+X_raw = df.drop(columns=[class_column], errors='ignore')
+
+# One-hot encode safely
 encode_columns = []
-if orbit_column in df.columns:
+if orbit_column in X_raw.columns:
     encode_columns.append(orbit_column)
-if weather_column in df.columns:
+if weather_column in X_raw.columns:
     encode_columns.append(weather_column)
 
-df_encoded = pd.get_dummies(df, columns=encode_columns, drop_first=True)
+X_encoded = pd.get_dummies(X_raw, columns=encode_columns, drop_first=True)
 
-cols_to_drop = [class_column, 'Year']
+# Drop non-numeric or irrelevant features
+cols_to_drop = ['Year']
 if date_column: cols_to_drop.append(date_column)
-if site_column and site_column in df_encoded.columns: cols_to_drop.append(site_column)
+if site_column and site_column in X_encoded.columns: cols_to_drop.append(site_column)
 if latitude_column: cols_to_drop.append(latitude_column)
 if longitude_column: cols_to_drop.append(longitude_column)
 
-X = df_encoded.drop(cols_to_drop, axis=1, errors='ignore')
-y = df_encoded[class_column]
+X = X_encoded.drop(cols_to_drop, axis=1, errors='ignore')
 
 # Train model
 poly = PolynomialFeatures(degree=2, include_bias=False)
