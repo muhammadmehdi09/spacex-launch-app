@@ -21,7 +21,7 @@ date_column = next((col for col in df.columns if 'date' in col.lower()), None)
 if date_column:
     df['Year'] = pd.to_datetime(df[date_column]).dt.year
 else:
-    df['Year'] = 0  # fallback if date column missing
+    df['Year'] = 0
 
 # Detect key columns safely
 site_column = next((col for col in df.columns if 'site' in col.lower()), None)
@@ -29,6 +29,8 @@ payload_column = next((col for col in df.columns if 'payload' in col.lower()), N
 orbit_column = next((col for col in df.columns if 'orbit' in col.lower()), None)
 weather_column = next((col for col in df.columns if 'weather' in col.lower()), None)
 class_column = next((col for col in df.columns if 'class' in col.lower()), None)
+latitude_column = next((col for col in df.columns if 'latitude' in col.lower()), None)
+longitude_column = next((col for col in df.columns if 'longitude' in col.lower()), None)
 
 if not class_column:
     st.error("❌ Could not find a 'Class' column for model training.")
@@ -70,17 +72,17 @@ else:
 
 # Map
 st.subheader("🗺️ Launch Sites Map")
-if 'Latitude' in df.columns and 'Longitude' in df.columns:
-    map_df = filtered_df[['Latitude', 'Longitude', class_column]].copy()
+if latitude_column and longitude_column:
+    map_df = filtered_df[[latitude_column, longitude_column, class_column]].copy()
     if site_column and site_column in filtered_df.columns:
         map_df[site_column] = filtered_df[site_column]
-    map_df = map_df.dropna(subset=['Latitude', 'Longitude'])
+    map_df = map_df.dropna(subset=[latitude_column, longitude_column])
     if not map_df.empty:
-        launch_map = folium.Map(location=[map_df['Latitude'].mean(), map_df['Longitude'].mean()], zoom_start=3)
+        launch_map = folium.Map(location=[map_df[latitude_column].mean(), map_df[longitude_column].mean()], zoom_start=3)
         for _, row in map_df.iterrows():
             color = "green" if row[class_column] == 1 else "red"
             folium.Marker(
-                location=[row['Latitude'], row['Longitude']],
+                location=[row[latitude_column], row[longitude_column]],
                 popup=row.get(site_column, "Launch Site") if site_column else "Launch Site",
                 icon=folium.Icon(color=color)
             ).add_to(launch_map)
@@ -92,8 +94,6 @@ else:
 
 # ML Section
 st.subheader("🤖 Predict Launch Success")
-
-# Handle missing payload column
 if payload_column:
     payload = st.slider("Payload Mass (kg):", int(df[payload_column].min()), int(df[payload_column].max()))
 else:
@@ -103,7 +103,6 @@ else:
 orbit = st.selectbox("Orbit:", sorted(df[orbit_column].dropna().unique()) if orbit_column else [])
 weather = st.selectbox("Weather:", sorted(df[weather_column].dropna().unique()) if weather_column else [])
 
-# One-hot encode safely
 encode_columns = []
 if orbit_column in df.columns:
     encode_columns.append(orbit_column)
@@ -115,9 +114,8 @@ df_encoded = pd.get_dummies(df, columns=encode_columns, drop_first=True)
 cols_to_drop = [class_column, 'Year']
 if date_column: cols_to_drop.append(date_column)
 if site_column and site_column in df_encoded.columns: cols_to_drop.append(site_column)
-for col in ['Latitude', 'Longitude']:
-    if col in df_encoded.columns:
-        cols_to_drop.append(col)
+if latitude_column: cols_to_drop.append(latitude_column)
+if longitude_column: cols_to_drop.append(longitude_column)
 
 X = df_encoded.drop(cols_to_drop, axis=1, errors='ignore')
 y = df_encoded[class_column]
