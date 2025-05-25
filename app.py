@@ -23,7 +23,7 @@ if date_column:
 else:
     df['Year'] = 0  # fallback if date column missing
 
-# Detect site and payload columns safely
+# Detect key columns safely
 site_column = next((col for col in df.columns if 'site' in col.lower()), None)
 payload_column = next((col for col in df.columns if 'payload' in col.lower()), None)
 orbit_column = next((col for col in df.columns if 'orbit' in col.lower()), None)
@@ -55,8 +55,11 @@ with st.expander("📄 View Filtered Data"):
 # Success by Orbit
 st.subheader("📊 Success Rate by Orbit")
 if not filtered_df.empty and orbit_column in filtered_df.columns:
-    orbit_success = filtered_df.groupby(orbit_column)['Class'].mean().sort_values(ascending=False)
-    st.bar_chart(orbit_success)
+    try:
+        orbit_success = filtered_df.groupby(filtered_df[orbit_column])['Class'].mean().sort_values(ascending=False)
+        st.bar_chart(orbit_success)
+    except KeyError:
+        st.warning("⚠️ Orbit column exists but could not be grouped correctly.")
 else:
     st.info("No data or 'Orbit' column not found.")
 
