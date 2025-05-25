@@ -28,9 +28,13 @@ site_column = next((col for col in df.columns if 'site' in col.lower()), None)
 payload_column = next((col for col in df.columns if 'payload' in col.lower()), None)
 orbit_column = next((col for col in df.columns if 'orbit' in col.lower()), None)
 weather_column = next((col for col in df.columns if 'weather' in col.lower()), None)
-class_column = 'Success'
+class_column = next((col for col in df.columns if 'success' in col.lower()), None)
 latitude_column = next((col for col in df.columns if 'latitude' in col.lower()), None)
 longitude_column = next((col for col in df.columns if 'longitude' in col.lower()), None)
+
+if not class_column:
+    st.error("❌ Could not find a column containing 'success' for model training.")
+    st.stop()
 
 # Sidebar - Filter
 st.sidebar.header("🔍 Filter Launch Data")
@@ -99,7 +103,7 @@ else:
 orbit = st.selectbox("Orbit:", sorted(df[orbit_column].dropna().unique()) if orbit_column else [])
 weather = st.selectbox("Weather:", sorted(df[weather_column].dropna().unique()) if weather_column else [])
 
-# Separate target variable before encoding
+# Prepare target and features before encoding
 y = df[class_column]
 X_raw = df.drop(columns=[class_column], errors='ignore')
 
@@ -112,7 +116,6 @@ if weather_column in X_raw.columns:
 
 X_encoded = pd.get_dummies(X_raw, columns=encode_columns, drop_first=True)
 
-# Drop non-numeric or irrelevant features
 cols_to_drop = ['Year']
 if date_column: cols_to_drop.append(date_column)
 if site_column and site_column in X_encoded.columns: cols_to_drop.append(site_column)
