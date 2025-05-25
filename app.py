@@ -26,6 +26,9 @@ else:
 # Detect site column safely
 site_column = next((col for col in df.columns if 'site' in col.lower()), None)
 
+# Detect payload column safely
+payload_column = next((col for col in df.columns if 'payload' in col.lower()), None)
+
 # Sidebar - Filter
 st.sidebar.header("🔍 Filter Launch Data")
 year_filter = st.sidebar.selectbox("Select Launch Year:", options=sorted(df['Year'].unique()), index=0)
@@ -81,7 +84,13 @@ else:
 
 # ML Section
 st.subheader("🤖 Predict Launch Success")
-payload = st.slider("Payload Mass (kg):", int(df['Payload Mass (kg)'].min()), int(df['Payload Mass (kg)'].max()))
+
+# Handle missing payload column
+if payload_column:
+    payload = st.slider("Payload Mass (kg):", int(df[payload_column].min()), int(df[payload_column].max()))
+else:
+    st.error("❌ Payload column not found in the dataset.")
+    st.stop()
 
 orbit = st.selectbox("Orbit:", sorted(df['Orbit'].dropna().unique()) if 'Orbit' in df.columns else [])
 weather = st.selectbox("Weather:", sorted(df['Weather'].dropna().unique()) if 'Weather' in df.columns else [])
@@ -108,7 +117,7 @@ model.fit(X_poly, y)
 
 # Prepare prediction input
 temp_input = pd.DataFrame(np.zeros((1, X.shape[1])), columns=X.columns)
-temp_input['Payload Mass (kg)'] = payload
+temp_input[payload_column] = payload
 if f'Orbit_{orbit}' in temp_input.columns:
     temp_input[f'Orbit_{orbit}'] = 1
 if f'Weather_{weather}' in temp_input.columns:
