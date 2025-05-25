@@ -124,6 +124,9 @@ if longitude_column: cols_to_drop.append(longitude_column)
 
 X = X_encoded.drop(cols_to_drop, axis=1, errors='ignore')
 
+# Ensure all values are numeric
+X = X.apply(pd.to_numeric, errors='coerce').fillna(0)
+
 # Train model
 poly = PolynomialFeatures(degree=2, include_bias=False)
 X_poly = poly.fit_transform(X)
