@@ -16,24 +16,23 @@ df = pd.read_csv("spacex_final.csv")
 # Display available columns for debugging
 st.write("🧾 Columns in CSV:", df.columns.tolist())
 
-# Detect target column
-target_column = next((col for col in df.columns if 'class' in col.lower()), None)
-if not target_column:
-    st.error("❌ Target column containing 'class' not found in dataset.")
-    st.stop()
-
 # Extract year from 'Date' column if available
 date_column = next((col for col in df.columns if 'date' in col.lower()), None)
 if date_column:
     df['Year'] = pd.to_datetime(df[date_column]).dt.year
 else:
-    df['Year'] = 0
+    df['Year'] = 0  # fallback if date column missing
 
-# Detect other columns safely
+# Detect key columns safely
 site_column = next((col for col in df.columns if 'site' in col.lower()), None)
 payload_column = next((col for col in df.columns if 'payload' in col.lower()), None)
 orbit_column = next((col for col in df.columns if 'orbit' in col.lower()), None)
 weather_column = next((col for col in df.columns if 'weather' in col.lower()), None)
+class_column = next((col for col in df.columns if 'class' in col.lower()), None)
+
+if not class_column:
+    st.error("❌ Could not find a 'Class' column for model training.")
+    st.stop()
 
 # Sidebar - Filter
 st.sidebar.header("🔍 Filter Launch Data")
@@ -62,7 +61,7 @@ with st.expander("📄 View Filtered Data"):
 st.subheader("📊 Success Rate by Orbit")
 if not filtered_df.empty and orbit_column in filtered_df.columns:
     try:
-        orbit_success = filtered_df.groupby(filtered_df[orbit_column])[target_column].mean().sort_values(ascending=False)
+        orbit_success = filtered_df.groupby(filtered_df[orbit_column])[class_column].mean().sort_values(ascending=False)
         st.bar_chart(orbit_success)
     except KeyError:
         st.warning("⚠️ Orbit column exists but could not be grouped correctly.")
@@ -72,14 +71,14 @@ else:
 # Map
 st.subheader("🗺️ Launch Sites Map")
 if 'Latitude' in df.columns and 'Longitude' in df.columns:
-    map_df = filtered_df[['Latitude', 'Longitude', target_column]].copy()
+    map_df = filtered_df[['Latitude', 'Longitude', class_column]].copy()
     if site_column and site_column in filtered_df.columns:
         map_df[site_column] = filtered_df[site_column]
     map_df = map_df.dropna(subset=['Latitude', 'Longitude'])
     if not map_df.empty:
         launch_map = folium.Map(location=[map_df['Latitude'].mean(), map_df['Longitude'].mean()], zoom_start=3)
         for _, row in map_df.iterrows():
-            color = "green" if row[target_column] == 1 else "red"
+            color = "green" if row[class_column] == 1 else "red"
             folium.Marker(
                 location=[row['Latitude'], row['Longitude']],
                 popup=row.get(site_column, "Launch Site") if site_column else "Launch Site",
@@ -113,15 +112,15 @@ if weather_column in df.columns:
 
 df_encoded = pd.get_dummies(df, columns=encode_columns, drop_first=True)
 
-cols_to_drop = [target_column, 'Year']
+cols_to_drop = [class_column, 'Year']
 if date_column: cols_to_drop.append(date_column)
-if site_column: cols_to_drop.append(site_column)
+if site_column and site_column in df_encoded.columns: cols_to_drop.append(site_column)
 for col in ['Latitude', 'Longitude']:
     if col in df_encoded.columns:
         cols_to_drop.append(col)
 
 X = df_encoded.drop(cols_to_drop, axis=1, errors='ignore')
-y = df_encoded[target_column]
+y = df_encoded[class_column]
 
 # Train model
 poly = PolynomialFeatures(degree=2, include_bias=False)
