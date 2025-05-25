@@ -28,13 +28,9 @@ site_column = next((col for col in df.columns if 'site' in col.lower()), None)
 payload_column = next((col for col in df.columns if 'payload' in col.lower()), None)
 orbit_column = next((col for col in df.columns if 'orbit' in col.lower()), None)
 weather_column = next((col for col in df.columns if 'weather' in col.lower()), None)
-class_column = next((col for col in df.columns if 'class' in col.lower()), None)
+class_column = 'Success'
 latitude_column = next((col for col in df.columns if 'latitude' in col.lower()), None)
 longitude_column = next((col for col in df.columns if 'longitude' in col.lower()), None)
-
-if not class_column:
-    st.error("❌ Could not find a 'Class' column for model training.")
-    st.stop()
 
 # Sidebar - Filter
 st.sidebar.header("🔍 Filter Launch Data")
