@@ -23,11 +23,11 @@ if date_column:
 else:
     df['Year'] = 0  # fallback if date column missing
 
-# Detect site column safely
+# Detect site and payload columns safely
 site_column = next((col for col in df.columns if 'site' in col.lower()), None)
-
-# Detect payload column safely
 payload_column = next((col for col in df.columns if 'payload' in col.lower()), None)
+orbit_column = next((col for col in df.columns if 'orbit' in col.lower()), None)
+weather_column = next((col for col in df.columns if 'weather' in col.lower()), None)
 
 # Sidebar - Filter
 st.sidebar.header("🔍 Filter Launch Data")
@@ -54,8 +54,8 @@ with st.expander("📄 View Filtered Data"):
 
 # Success by Orbit
 st.subheader("📊 Success Rate by Orbit")
-if not filtered_df.empty and 'Orbit' in filtered_df.columns:
-    orbit_success = filtered_df.groupby("Orbit")['Class'].mean().sort_values(ascending=False)
+if not filtered_df.empty and orbit_column in filtered_df.columns:
+    orbit_success = filtered_df.groupby(orbit_column)['Class'].mean().sort_values(ascending=False)
     st.bar_chart(orbit_success)
 else:
     st.info("No data or 'Orbit' column not found.")
@@ -92,11 +92,17 @@ else:
     st.error("❌ Payload column not found in the dataset.")
     st.stop()
 
-orbit = st.selectbox("Orbit:", sorted(df['Orbit'].dropna().unique()) if 'Orbit' in df.columns else [])
-weather = st.selectbox("Weather:", sorted(df['Weather'].dropna().unique()) if 'Weather' in df.columns else [])
+orbit = st.selectbox("Orbit:", sorted(df[orbit_column].dropna().unique()) if orbit_column else [])
+weather = st.selectbox("Weather:", sorted(df[weather_column].dropna().unique()) if weather_column else [])
 
-# One-hot encode
-df_encoded = pd.get_dummies(df, columns=['Orbit', 'Weather'], drop_first=True)
+# One-hot encode safely
+encode_columns = []
+if orbit_column in df.columns:
+    encode_columns.append(orbit_column)
+if weather_column in df.columns:
+    encode_columns.append(weather_column)
+
+df_encoded = pd.get_dummies(df, columns=encode_columns, drop_first=True)
 
 cols_to_drop = ['Class', 'Year']
 if date_column: cols_to_drop.append(date_column)
@@ -118,10 +124,10 @@ model.fit(X_poly, y)
 # Prepare prediction input
 temp_input = pd.DataFrame(np.zeros((1, X.shape[1])), columns=X.columns)
 temp_input[payload_column] = payload
-if f'Orbit_{orbit}' in temp_input.columns:
-    temp_input[f'Orbit_{orbit}'] = 1
-if f'Weather_{weather}' in temp_input.columns:
-    temp_input[f'Weather_{weather}'] = 1
+if f'{orbit_column}_{orbit}' in temp_input.columns:
+    temp_input[f'{orbit_column}_{orbit}'] = 1
+if f'{weather_column}_{weather}' in temp_input.columns:
+    temp_input[f'{weather_column}_{weather}'] = 1
 
 input_poly = poly.transform(temp_input)
 prediction = model.predict(input_poly)[0]
